@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ぷよぷよちゃん</title>
+    <!-- 丸くて可愛いフォントを読み込み -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'M PLUS Rounded 1c', 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px 0;
+            box-sizing: border-box;
+            /* 背景を可愛いグラデーションに */
+            background: linear-gradient(135deg, #ffc3a0 0%, #ffafbd 100%);
+            color: #7a5c61;
+            flex-direction: column;
+        }
+
+        #game-container {
+            display: flex;
+            gap: 15px;
+            /* 半透明で柔らかいコンテナ */
+            background-color: rgba(255, 255, 255, 0.4);
+            padding: 15px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(255, 175, 189, 0.6);
+            border: 4px solid #fff;
+            backdrop-filter: blur(5px);
+            /* スマホ向けに縦並びに変更 */
+            flex-direction: column;
+            align-items: center;
+            max-width: 95vw;
+        }
+
+        #board {
+            /* スマホ画面に収まりやすいサイズに縮小 (40px * 6列 / 40px * 10行) */
+            width: 240px;
+            height: 400px;
+            /* 盤面を明るい色に */
+            background-color: rgba(255, 255, 255, 0.7);
+            border: 4px solid #ffb6c1;
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .puyo {
+            /* スマホ向けに縮小 */
+            width: 40px;
+            height: 40px;
+            position: absolute;
+            border-radius: 50%;
+            box-sizing: border-box;
+            border: 2px solid rgba(255,255,255,0.9);
+            box-shadow: inset -5px -5px 10px rgba(0,0,0,0.1), inset 5px 5px 15px rgba(255,255,255,0.8), 2px 2px 5px rgba(0,0,0,0.15);
+            transition: top 0.1s linear, left 0.1s linear;
+        }
+
+        /* ぷよの「ツヤ（光沢）」をCSSで追加 */
+        .puyo::after {
+            content: '';
+            position: absolute;
+            top: 15%;
+            left: 20%;
+            width: 25%;
+            height: 25%;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 50%;
+        }
+
+        /* パステルで可愛いキャンディカラー */
+        .color-1 { background: radial-gradient(circle at 35% 35%, #ff99cc, #ff4d88); } /* ピンク */
+        .color-2 { background: radial-gradient(circle at 35% 35%, #99ffcc, #33cc99); } /* ミントグリーン */
+        .color-3 { background: radial-gradient(circle at 35% 35%, #99ccff, #4d99ff); } /* ライトブルー */
+        .color-4 { background: radial-gradient(circle at 35% 35%, #ffff99, #ffcc00); } /* レモンイエロー */
+
+        #info-panel {
+            display: flex;
+            /* パネルを横に並べてコンパクトに配置 */
+            flex-direction: row;
+            gap: 10px;
+            width: 100%;
+            justify-content: space-between;
+        }
+        
+        .panel-box {
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 15px;
+            border: 3px dashed #ffb6c1;
+            text-align: center;
+            color: #d87093;
+            font-weight: bold;
+            flex: 1;
+            font-size: 14px;
+        }
+
+        #next-puyo-display {
+            width: 50px;
+            height: 80px;
+            margin: 5px auto;
+            position: relative;
+        }
+
+        #score, #chain {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ff69b4;
+            text-shadow: 1px 1px 0px #fff;
+        }
+
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            max-width: 300px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: 3px solid #fff;
+            border-radius: 25px;
+            background: linear-gradient(to bottom, #ff99cc, #ff66a3);
+            color: white;
+            font-weight: bold;
+            font-family: 'M PLUS Rounded 1c', 'Inter', sans-serif;
+            box-shadow: 0 4px 8px rgba(255, 102, 163, 0.4);
+            transition: transform 0.1s;
+        }
+
+        button:hover {
+            background: linear-gradient(to bottom, #ffb3d9, #ff80b3);
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        #game-over-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 235, 242, 0.95);
+            color: #d87093;
+            padding: 30px;
+            border-radius: 20px;
+            border: 4px dashed #ff69b4;
+            text-align: center;
+            display: none;
+            z-index: 10;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+
+        .chain-effect {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            font-size: 32px;
+            font-weight: bold;
+            /* 可愛らしいピンク色と白の縁取り */
+            color: #ff1493;
+            text-shadow: 3px 3px 0 #fff, -3px -3px 0 #fff, 3px -3px 0 #fff, -3px 3px 0 #fff, 0 5px 15px rgba(255,105,180,0.6);
+            pointer-events: none;
+            z-index: 20;
+            animation: popAndFloat 1.5s ease-out forwards;
+            white-space: nowrap;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        /* フワッと浮き上がって消えるアニメーション */
+        @keyframes popAndFloat {
+            0% { opacity: 0; transform: translate(-50%, -30%) scale(0.5); }
+            20% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            80% { opacity: 1; transform: translate(-50%, -80%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -100%) scale(0.8); }
+        }
+
+        /* スタート画面のスタイル */
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 235, 242, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            text-align: center;
+        }
+        
+        #start-screen h2 {
+            color: #ff69b4;
+            font-size: 32px;
+            text-shadow: 2px 2px 0px #fff, 0 0 10px rgba(255,105,180,0.5);
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    
+    <div id="game-container">
+        <!-- ゲームボード -->
+        <div id="board">
+            <!-- スタート画面 -->
+            <div id="start-screen">
+                <h2>🎀 ぷよぷよちゃん 🎀</h2>
+                <p style="color: #d87093; margin-bottom: 20px; font-weight: bold; font-size: 14px; padding: 0 10px;">おなじいろをくっつけて<br>CANDYをあつめよう！</p>
+                <button onclick="clickStartButton()">ゲームスタート！</button>
+            </div>
+
+            <div id="game-over-message">
+                <h2>ゲームオーバー</h2>
+                <p>スコア: <span id="final-score">0</span></p>
+                <button onclick="startGame()">もう一度プレイ</button>
+            </div>
+        </div>
+
+        <!-- 情報パネル -->
+        <div id="info-panel">
+            <div class="panel-box">
+                <div>NEXT</div>
+                <div id="next-puyo-display"></div>
+            </div>
+            <div class="panel-box">
+                <div>SCORE</div>
+                <div id="score">0</div>
+            </div>
+            <div class="panel-box">
+                <div>CHAIN</div>
+                <div id="chain">0</div>
+            </div>
+            <!-- キャンディあつめ表示エリアを追加 -->
+            <div class="panel-box" style="min-height: 80px;">
+                <div>CANDY</div>
+                <div id="candy-display" style="font-size: 22px; word-break: break-all; margin-top: 5px; min-height: 30px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 操作ボタン（モバイル用簡易ボタン、キーボードでも操作可能） -->
+    <div class="controls">
+        <button onclick="moveLeft()">← 左</button>
+        <button onclick="rotate()">回転</button>
+        <button onclick="moveRight()">右 →</button>
+        <button onclick="dropFast()">↓ 落下</button>
+    </div>
+
+    <script>
+        // --- 定数と設定 ---
+        const COLS = 6;           // ボードの列数
+        const ROWS = 10;          // ボードの行数（少し短く変更）
+        const CELL_SIZE = 40;     // 1セルのピクセルサイズ（スマホ向けに縮小）
+        const COLORS = 4;         // ぷよの色の数 (1~4)
+        const CONNECT_TO_ERASE = 4; // 消えるために必要な連結数
+
+        // --- ゲーム状態変数 ---
+        let boardData = [];       // ボードの状態を保持する2次元配列 (0:空, 1~4:色)
+        let currentPuyo = null;   // 現在操作中のぷよのペア
+        let nextPuyoColor = [];   // 次に降ってくるぷよの色ペア
+        let score = 0;            // 現在のスコア
+        let gameInterval = null;  // 落下ループ用のインターバルID
+        let isProcessing = false; // 連鎖処理中フラグ（操作ブロック用）
+        let fallSpeed = 1000;     // 基本落下速度（ミリ秒）
+
+        // DOM要素の取得
+        const boardEl = document.getElementById('board');
+        const scoreEl = document.getElementById('score');
+        const chainEl = document.getElementById('chain');
+        const nextDisplayEl = document.getElementById('next-puyo-display');
+        const gameOverMsg = document.getElementById('game-over-message');
+        const finalScoreEl = document.getElementById('final-score');
+        const candyDisplayEl = document.getElementById('candy-display');
+        const startScreen = document.getElementById('start-screen'); // スタート画面の要素を追加
+
+        function updateCandyDisplay() {
+            // スコア100点につき1つのキャンディー(🍬)を計算
+            const candyCount = Math.floor(score / 100);
+            if (candyDisplayEl) {
+                // キャンディの絵文字を数ぶん表示
+                candyDisplayEl.textContent = '🍬'.repeat(candyCount);
+            }
+        }
+
+        // --- かわいい連鎖エフェクトの表示関数 ---
+        function showChainEffect(chainCount) {
+            const effectEl = document.createElement('div');
+            effectEl.className = 'chain-effect';
+            
+            let message = '';
+            let emoji = '';
+            
+            // 連鎖数に応じてメッセージと絵文字が変わる
+            switch(chainCount) {
+                case 1: message = 'いいね！'; emoji = '💖'; break;
+                case 2: message = 'かわいい！'; emoji = '🎀'; break;
+                case 3: message = 'すごい！'; emoji = '✨'; break;
+                case 4: message = 'きらきら！'; emoji = '🌟'; break;
+                default: message = 'ミラクル！！'; emoji = '🦄'; break;
+            }
+            
+            effectEl.innerHTML = `${chainCount}れんさ<br><span style="font-size: 24px;">${message} ${emoji}</span>`;
+            
+            // ゲームボードの中央に追加
+            boardEl.appendChild(effectEl);
+            
+            // アニメーションが終わる頃(1.5秒後)に要素を消す
+            setTimeout(() => {
+                effectEl.remove();
+            }, 1500);
+        }
+
+        // --- ゲームの初期化関数 ---
+        function initBoard() {
+            boardData = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+            const puyos = boardEl.querySelectorAll('.puyo');
+            puyos.forEach(p => p.remove());
+        }
+
+        function getRandomColor() {
+            return Math.floor(Math.random() * COLORS) + 1;
+        }
+
+        function generateNextPuyo() {
+            if (nextPuyoColor.length === 0) {
+                nextPuyoColor = [getRandomColor(), getRandomColor()];
+            }
+            const currentColors = [...nextPuyoColor];
+            nextPuyoColor = [getRandomColor(), getRandomColor()];
+            updateNextDisplay();
+            return currentColors;
+        }
+
+        function updateNextDisplay() {
+            nextDisplayEl.innerHTML = '';
+            const p1 = createPuyoElement(nextPuyoColor[0]);
+            p1.style.top = '0px';
+            p1.style.left = '5px';
+            
+            const p2 = createPuyoElement(nextPuyoColor[1]);
+            p2.style.top = '40px'; // サイズ縮小に合わせて40pxずらす
+            p2.style.left = '5px';
+            
+            nextDisplayEl.appendChild(p1);
+            nextDisplayEl.appendChild(p2);
+        }
+
+        function createPuyoElement(colorIndex) {
+            const el = document.createElement('div');
+            el.className = `puyo color-${colorIndex}`;
+            return el;
+        }
+
+        // --- 操作ブロック(ペア)の管理 ---
+        function spawnPuyo() {
+            const colors = generateNextPuyo();
+            
+            currentPuyo = {
+                main: { x: 2, y: 1, color: colors[0], el: createPuyoElement(colors[0]) },
+                sub: { x: 2, y: 0, color: colors[1], el: createPuyoElement(colors[1]) },
+                rotation: 0
+            };
+
+            boardEl.appendChild(currentPuyo.main.el);
+            boardEl.appendChild(currentPuyo.sub.el);
+            
+            updatePuyoPosition();
+
+            if (boardData[currentPuyo.main.y][currentPuyo.main.x] !== 0 || 
+                boardData[currentPuyo.sub.y][currentPuyo.sub.x] !== 0) {
+                gameOver();
+            }
+        }
+
+        function updatePuyoPosition() {
+            if (!currentPuyo) return;
+            currentPuyo.main.el.style.left = currentPuyo.main.x * CELL_SIZE + 'px';
+            currentPuyo.main.el.style.top = currentPuyo.main.y * CELL_SIZE + 'px';
+            currentPuyo.sub.el.style.left = currentPuyo.sub.x * CELL_SIZE + 'px';
+            currentPuyo.sub.el.style.top = currentPuyo.sub.y * CELL_SIZE + 'px';
+        }
+
+        function isValidPosition(p1_x, p1_y, p2_x, p2_y) {
+            return p1_x >= 0 && p1_x < COLS && p1_y >= 0 && p1_y < ROWS && boardData[p1_y][p1_x] === 0 &&
+                   p2_x >= 0 && p2_x < COLS && p2_y >= 0 && p2_y < ROWS && boardData[p2_y][p2_x] === 0;
+        }
+
+        // --- プレイヤーの操作関数 ---
+        function moveLeft() {
+            if (isProcessing || !currentPuyo) return;
+            if (isValidPosition(currentPuyo.main.x - 1, currentPuyo.main.y, currentPuyo.sub.x - 1, currentPuyo.sub.y)) {
+                currentPuyo.main.x--;
+                currentPuyo.sub.x--;
+                updatePuyoPosition();
+            }
+        }
+
+        function moveRight() {
+            if (isProcessing || !currentPuyo) return;
+            if (isValidPosition(currentPuyo.main.x + 1, currentPuyo.main.y, currentPuyo.sub.x + 1, currentPuyo.sub.y)) {
+                currentPuyo.main.x++;
+                currentPuyo.sub.x++;
+                updatePuyoPosition();
+            }
+        }
+
+        function rotate() {
+            if (isProcessing || !currentPuyo) return;
+            
+            const nextRot = (currentPuyo.rotation + 1) % 4;
+            let nextSubX = currentPuyo.main.x;
+            let nextSubY = currentPuyo.main.y;
+
+            if (nextRot === 0) { nextSubY -= 1; }
+            if (nextRot === 1) { nextSubX += 1; }
+            if (nextRot === 2) { nextSubY += 1; }
+            if (nextRot === 3) { nextSubX -= 1; }
+
+            let mainX = currentPuyo.main.x;
+            if (nextSubX < 0) { mainX++; nextSubX++; }
+            else if (nextSubX >= COLS) { mainX--; nextSubX--; }
+
+            if (isValidPosition(mainX, currentPuyo.main.y, nextSubX, nextSubY)) {
+                currentPuyo.main.x = mainX;
+                currentPuyo.sub.x = nextSubX;
+                currentPuyo.sub.y = nextSubY;
+                currentPuyo.rotation = nextRot;
+                updatePuyoPosition();
+            }
+        }
+
+        function moveDown() {
+            if (isProcessing || !currentPuyo) return false;
+            
+            if (isValidPosition(currentPuyo.main.x, currentPuyo.main.y + 1, currentPuyo.sub.x, currentPuyo.sub.y + 1)) {
+                currentPuyo.main.y++;
+                currentPuyo.sub.y++;
+                updatePuyoPosition();
+                return true;
+            } else {
+                lockPuyo();
+                return false;
+            }
+        }
+
+        function dropFast() {
+            if (isProcessing || !currentPuyo) return;
+            while(moveDown()) {}
+        }
+
+        // --- 盤面への固定と落下・連鎖処理 ---
+        async function lockPuyo() {
+            isProcessing = true;
+            clearInterval(gameInterval);
+
+            currentPuyo.main.el.remove();
+            currentPuyo.sub.el.remove();
+
+            if(currentPuyo.main.y >= 0) boardData[currentPuyo.main.y][currentPuyo.main.x] = currentPuyo.main.color;
+            if(currentPuyo.sub.y >= 0)  boardData[currentPuyo.sub.y][currentPuyo.sub.x] = currentPuyo.sub.color;
+
+            currentPuyo = null;
+            
+            // 【修正】盤面データに固定した直後に、必ず一度画面を再描画する
+            renderBoard();
+
+            await processGravityAndChains();
+        }
+
+        function renderBoard() {
+            const existingPuyos = boardEl.querySelectorAll('.puyo:not([id])');
+            existingPuyos.forEach(p => p.remove());
+
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    const color = boardData[y][x];
+                    if (color !== 0) {
+                        const puyoEl = createPuyoElement(color);
+                        puyoEl.style.left = x * CELL_SIZE + 'px';
+                        puyoEl.style.top = y * CELL_SIZE + 'px';
+                        boardEl.appendChild(puyoEl);
+                    }
+                }
+            }
+        }
+
+        async function applyGravity() {
+            let moved = false;
+            for (let x = 0; x < COLS; x++) {
+                for (let y = ROWS - 2; y >= 0; y--) {
+                    if (boardData[y][x] !== 0) {
+                        let fallY = y;
+                        while (fallY + 1 < ROWS && boardData[fallY + 1][x] === 0) {
+                            fallY++;
+                        }
+                        if (fallY !== y) {
+                            boardData[fallY][x] = boardData[y][x];
+                            boardData[y][x] = 0;
+                            moved = true;
+                        }
+                    }
+                }
+            }
+            if (moved) {
+                renderBoard();
+                await new Promise(r => setTimeout(r, 200)); 
+            }
+            return moved;
+        }
+
+        // 修正: 連結判定を正確に行うように見直し
+        async function checkAndErase() {
+            let erased = false;
+            let eraseCount = 0;
+            let toErase = Array(ROWS).fill().map(() => Array(COLS).fill(false));
+            let visited = Array(ROWS).fill().map(() => Array(COLS).fill(false));
+
+            function findConnected(x, y, color) {
+                // 範囲外または訪問済み、または色が違う場合は空配列を返す
+                if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return [];
+                if (visited[y][x] || boardData[y][x] !== color) return [];
+
+                // 訪問済みにする
+                visited[y][x] = true;
+                
+                // 現在のぷよを配列に入れる
+                let connected = [{x, y}];
+
+                // 上下左右を再帰的にチェックして結合する
+                // concatを使用し、新しく見つかったぷよを追加していく
+                connected = connected.concat(findConnected(x, y - 1, color));
+                connected = connected.concat(findConnected(x, y + 1, color));
+                connected = connected.concat(findConnected(x - 1, y, color));
+                connected = connected.concat(findConnected(x + 1, y, color));
+
+                return connected;
+            }
+
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    const color = boardData[y][x];
+                    if (color !== 0 && !visited[y][x]) {
+                        // 連結をチェック
+                        const connectedPuyos = findConnected(x, y, color);
+                        
+                        // 4つ以上繋がっていたら消去対象フラグを立てる
+                        if (connectedPuyos.length >= CONNECT_TO_ERASE) {
+                            connectedPuyos.forEach(p => {
+                                toErase[p.y][p.x] = true;
+                            });
+                            erased = true;
+                            eraseCount += connectedPuyos.length;
+                        }
+                    }
+                }
+            }
+
+            if (erased) {
+                for (let y = 0; y < ROWS; y++) {
+                    for (let x = 0; x < COLS; x++) {
+                        if (toErase[y][x]) {
+                            boardData[y][x] = 0; // 盤面から消去
+                        }
+                    }
+                }
+                renderBoard();
+                await new Promise(r => setTimeout(r, 300));
+                return eraseCount;
+            }
+            return 0;
+        }
+
+        async function processGravityAndChains() {
+            let chainCount = 0;
+            chainEl.textContent = chainCount;
+            
+            await applyGravity();
+
+            while (true) {
+                const erasedAmount = await checkAndErase();
+                if (erasedAmount > 0) {
+                    chainCount++;
+                    chainEl.textContent = chainCount;
+                    score += erasedAmount * 10 * chainCount;
+                    scoreEl.textContent = score;
+
+                    // スコア更新に伴いキャンディ表示も更新
+                    updateCandyDisplay();
+
+                    // 連鎖エフェクトを表示
+                    showChainEffect(chainCount);
+
+                    await applyGravity();
+                } else {
+                    break;
+                }
+            }
+
+            isProcessing = false;
+            if(boardData[0][2] !== 0 || boardData[1][2] !== 0) {
+                 gameOver();
+                 return;
+            }
+
+            spawnPuyo();
+            gameInterval = setInterval(gameLoop, fallSpeed);
+        }
+
+        // --- ゲーム進行とイベント制御 ---
+        function gameLoop() {
+            moveDown();
+        }
+
+        function gameOver() {
+            clearInterval(gameInterval);
+            isProcessing = true;
+            gameOverMsg.style.display = 'block';
+            finalScoreEl.textContent = score;
+        }
+
+        function startGame() {
+            initBoard();
+            score = 0;
+            scoreEl.textContent = score;
+            chainEl.textContent = 0;
+            updateCandyDisplay();
+            gameOverMsg.style.display = 'none';
+            nextPuyoColor = [];
+            isProcessing = false;
+
+            spawnPuyo();
+            
+            if (gameInterval) clearInterval(gameInterval);
+            gameInterval = setInterval(gameLoop, fallSpeed);
+        }
+
+        // ゲーム開始ボタンを押した時の処理
+        function clickStartButton() {
+            startScreen.style.display = 'none';
+            startGame();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            // プレイ中以外（スタート画面やゲームオーバー画面）はキー操作を無効にする
+            if (startScreen.style.display !== 'none' || gameOverMsg.style.display === 'block') return;
+
+            if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight", " "].indexOf(e.code) > -1) {
+                e.preventDefault();
+            }
+
+            switch(e.key) {
+                case 'ArrowLeft':
+                    moveLeft();
+                    break;
+                case 'ArrowRight':
+                    moveRight();
+                    break;
+                case 'ArrowDown':
+                    moveDown();
+                    break;
+                case 'ArrowUp':
+                case ' ':
+                    rotate();
+                    break;
+            }
+        });
+
+        window.onload = () => {
+            initBoard();
+            // スタート画面を表示したまま待機するため、startGame()は呼ばない
+        };
+
+    </script>
+</body>
+</html>
